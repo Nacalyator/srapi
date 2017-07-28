@@ -1,0 +1,12 @@
+# Folders
+_obj
+
+node_modules/
+
+# Build
+
+# debug
+*.log
+
+# IDE/vim/etc
+.tern-project
