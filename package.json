@@ -1,6 +1,6 @@
 {
-  "name": "sp_api",
-  "version": "0.0.1",
+  "name": "spapi",
+  "version": "0.0.2",
   "description": "",
   "main": "sp_api.js",
   "scripts": {
