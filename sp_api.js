@@ -15,7 +15,9 @@ const cache_path = './cache.json';
 // === for speedrun
 // It's need to rework! This function must use cycle of promises to get alls
 // game names and it's IDs. Problem with cycle realization
+
 function getGameList() { //{{{
+//Note: doesn't work!
   var gameList = [[], []];
   var paginator = 0;
   
@@ -23,10 +25,10 @@ function getGameList() { //{{{
     fs.writeFileSync(cache_path);
   }
   
-  for (var i = 1; i <=  12; i++) {
+  for (var i = 0; i <=  12; i++) {
     var paginator = paginator * i; 
     fetch(`${URL}/api/v1/games?_bulk=yes&max=1000&offset=${paginator}`)
-      .then((res) => res.json)
+      .then((res) => res.json())
       .then((json) => {
         var response = json.data;
         var buff = response.length;
@@ -46,54 +48,92 @@ function getGameList() { //{{{
   console.log('Cache file created')
 }//}}}
 
-function loadGameList() {
+function loadGameList() { //{{{
   if (!fs.existsSync(cache_path)) {
     getGameList();
   }
   return JSON.parse(fs.readFileSync(cache_path));
-}
+} //}}}
 
-function getGameRecord(gameName, gameList){//{{{
-  var gameID;
+function getGameID(gameName, gameList) { //{{{
+//Note: work properly!
+  // Check for arguments length
+  if (arguments.length == 0) {
+    return '[Err] Needed name of game!';
+  } else if (arguments.length == 1) {
+    var gameList = loadGameList();
+  } else {
+    
+  }
+  // Search game name in array of names
   var index = gameList[0].indexOf(gameName);
   if (index != -1) {
-    gameID = gameList[1][index];
+    return gameList[1][index];
   } else {
-    console.log("[Error] Game not found!");
-    gameID = 0;
+    return '[Err] Game not found!';
   }
-  // return fetch(`${URL}/api/v1/games/${gameID}/records?_top=1&scope=full-game&skip-empty=true`)
-  return fetch(`${URL}/api/v1/games/${gameID}`)
+} //}}}
+
+function getGameRecord(gameID, categories) { //{{{
   
-    .then((res) => {
-      test = res.json;
-      res.json
-      
-    })
+  var recordPs = [];
+  // Check for arguments length
+  if (arguments.length == 0) {
+    return '[Err] Needed ID of the game!';
+  } else if (arguments.length == 1) {
+    var categories = getGameCategories(gameID);
+  } else {
+    
+  }
+  
+  console.log(categories);
+  var catLength = categories.length;
+  for (var i = 0; i < catLength; i++) {
+    var p = fetch(`${URL}/api/v1/leaderboards/${gameID}/category/${categories[i]}?_top=1`)
+      .then((res) => res.json()).then((json) => json.data);
+    console.log(p);
+    recordPs.push(p);
+  }
+
+
+  Promise.all(recordPs)
+    .then(vals => console.log(vals));
+}//}}}
+
+function getGameCategories(gameID) { //{{{
+// Note: work properly!
+  return fetch(`${URL}/api/v1/games/${gameID}/categories`)
+    .then((res) => res.json())
     .then((json) => {
-      console.log(json);
-      console.log(json.data);
-      return json.data;
+      var data = json.data;
+      var catLength = data.length;
+      var categories = [[], []];
+      for (var i = 0; i < catLength; i++) {
+        categories[0].push(data[i].name);
+        categories[1].push(data[i].id);
+      }
+      return categories;
     });
 }//}}}
 
-
-function getGameRecordTest(gameID){//{{{
-  // return fetch(`${URL}/api/v1/games/${gameID}/records?_top=1&scope=full-game&skip-empty=true`)
-  // return fetch(`${URL}/api/v1/games/${gameID}`)
-  return fetch(`${URL}/api/v1/games/lde2m5d3/categories`)
-    .then((res) => {res.json})
-    .then((json) => {
-      return json.data;
-    })
-    .catch(function(ex) {
-    console.log('parsing failed', ex)
-    });
-}//}}}
-
-
-
-
+// Test
+var options = { //{{{
+method: 'GET',
+headers: {
+  'User-Agent': 'twitch-wr-bot/0.1',
+  Accept: 'application/json',
+  'content-type': 'application/json',
+  connection: 'close'
+         },
+body: null,
+redirect: 'follow',
+follow: 20,
+timeout: 0,
+compress: true,
+size: 0,
+body: 'string',
+agent: null
+}; //}}}
 
 // === for chat
 
@@ -101,28 +141,18 @@ function print_data_to_chat(data){//{{{
 
 }//}}}
 
-
 // ========== tests
 
-// get_game_data(199).then((res) => {
-//   console.log(res.length === 199);
-// });
 
-// var gamelist = loadGameList();
+//var gameList = loadGameList();
 
-var gameID = 'lde2m5d3';
+//var gameID = 'lde2m5d3';
+var gameName = 'Titanfall'
 
+var gameID = getGameID(gameName);
 
-
-
-getGameRecordTest(gameID).then((res) => {
+getGameRecord(gameID)
+  /*.then((res) => {
     var test = res;
     console.log(test);
-});
-
-
-
-// get_game_data(23).then((res) => {
-  
-//   console.log(res.length);
-// })
+});*/
