@@ -1,52 +1,139 @@
 'use strict';
-const fetch = require('node-fetch');
+const request = require('sync-request');
 const fs = require("fs");
-// import fetch from 'node-fetch';
-// import fs from 'fs';
 
 // ========== data {{{
 const SERVER = "www.speedrun.com";
 const URL = `http://${SERVER}`;
 const cache_path = './cache.json';
+const headers = { //{{{
+  'User-Agent': 'twitch-wr-bot(Nacalyator)/0.0.1',
+  'content-type': 'application/json'
+}; //}}}
+const options = { //{{{
+  headers: headers,
+  followRedirects: true,
+  maxRedirects: 20,
+  gzip: true,
+  maxRetr: 10
+}; //}}}
 //}}}
 
-// ========== api
+// ========== API
 
-// === for speedrun
-// It's need to rework! This function must use cycle of promises to get alls
-// game names and it's IDs. Problem with cycle realization
+// ===== GET
 
 function getGameList() { //{{{
-//Note: doesn't work!
+//Note: Work properly!
   var gameList = [[], []];
   var paginator = 0;
-  
+  var onPage = 1000;
   if (!fs.existsSync(cache_path)) {
     fs.writeFileSync(cache_path);
   }
-  
   for (var i = 0; i <=  12; i++) {
-    var paginator = paginator * i; 
-    fetch(`${URL}/api/v1/games?_bulk=yes&max=1000&offset=${paginator}`)
-      .then((res) => res.json())
-      .then((json) => {
-        var response = json.data;
-        var buff = response.length;
-        for (var j = 0; j < buff; j++) {
-          gameList[1].push(response[j].id);
-          if (response[j].names.hasOwnProperty('twitch')) {
-            gameList[0].push(response[j].names.twitch);
-          } else {
-            gameList[0].push(response[j].names.international);
-          }
-        }
-      })
+    paginator = onPage * i; 
+    var res = request('GET', `${URL}/api/v1/games?_bulk=yes&max=${onPage}&offset=${paginator}`);
+    var json = JSON.parse(res.getBody('utf8'));
+    var data = json.data;
+    var dataLength = data.length;
+    for (var j = 0; j < dataLength; j++) {
+      gameList[1].push(data[j].id);
+      if (data[j].names.hasOwnProperty('twitch')) {
+        gameList[0].push(data[j].names.twitch);
+      } else {
+        gameList[0].push(data[j].names.international);
+      }
+    }
   }
-  
   gameList = JSON.stringify(gameList, null, '\t');
   fs.writeFileSync(cache_path, gameList);
-  console.log('Cache file created')
+  return '[Msg] Cache file created!';
 }//}}}
+
+function getPlatformList() { //{{{
+  var platformList = [[], []];
+  var res = request('GET', `${URL}/api/v1/platforms`);
+  var json = JSON.parse(res.getBody('utf8'));
+  var data = json.data;
+  var dataLength = data.length;
+  for (var i = 0; i < dataLength; i++) {
+    platformList[0].push(data[i].name);
+    platformList[0].push(data[i].id);
+    console.log(data[i]);
+  }
+  return platformList;
+} //}}}
+
+function getGameID(gameName, gameList) { //{{{
+//Note: work properly!
+  // Check for arguments length
+  if (arguments.length == 0) {
+    return '[Err] Needed name of game!';
+  } else if (typeof gameName == 'string') {
+    if (!gameList || Array.isArray(gameList) ==false) {
+      var gameList = loadGameList();
+    }
+    var index = gameList[0].indexOf(gameName);
+    if (index != -1) {
+      return gameList[1][index];
+    } else {
+      return '[Err] Game not found!';
+    }
+  }
+} //}}}
+
+function getGameCategories(gameID) { //{{{
+// Note: work properly!
+  if (!gameID && typeof gameID != 'string') {
+    return '[Err] Needed gameID!';
+  }
+  var categories = [];
+  var res = request('GET', `${URL}/api/v1/games/${gameID}/categories`);
+  var json = JSON.parse(res.getBody('utf8'));
+  var data = json.data;
+  var catLength = data.length;
+  for (var i = 0; i < catLength; i++) {
+    var category = {
+      name: data[i].name,
+      ID: data[i].id
+    };
+    categories.push(category);
+  }
+  return categories;
+}//}}}
+
+function getGameLeaderboard(gameID, categories) { //{{{
+  var leaderboards = [];
+  // Check for arguments length
+  if (arguments.length == 0) {
+    return '[Err] Needed ID of the game!';
+  } else if (arguments.length == 1 && typeof gameID == 'string') {
+    return getGameLeaderboard(gameID, getGameCategories(gameID));
+  } else if (arguments.length == 2 && typeof gameID == 'string' && Array.isArray(categories) == true) {
+    var catLength = categories.length;
+    for (var i = 0; i < catLength; i++) {
+      var res = request('GET', `${URL}/api/v1/leaderboards/${gameID}/category/${categories[i].ID}?_top=1`);
+      var json = JSON.parse(res.getBody('utf8'));
+      var data = json.data;
+      var record = { //{{{
+        gameID: data.runs[0].run.game,
+        platformID: data.runs[0].run.system.platform,
+        categoryID: data.runs[0].run.category,
+        runID: data.runs[0].run.id,
+        userID: data.runs[0].run.players[0].id,
+        time_s: data.runs[0].run.times.realtime_t,
+        time_t:  data.runs[0].run.times.realtime
+      }; //}}}
+    leaderboards.push(record);
+    }
+  } else {
+  return '[Err] Impossible to get game categories!';
+  }
+  return leaderboards;
+}//}}}
+
+// ===== Load
 
 function loadGameList() { //{{{
   if (!fs.existsSync(cache_path)) {
@@ -55,104 +142,52 @@ function loadGameList() { //{{{
   return JSON.parse(fs.readFileSync(cache_path));
 } //}}}
 
-function getGameID(gameName, gameList) { //{{{
-//Note: work properly!
-  // Check for arguments length
-  if (arguments.length == 0) {
-    return '[Err] Needed name of game!';
-  } else if (arguments.length == 1) {
-    var gameList = loadGameList();
+// ===== Convert IDs
+
+function platformID2name (platformID, platformList) { //{{{
+  if (arguments.length == 1 && typeof arguments[0] == 'string') {
+    var res = request('GET', `${URL}/api/v1/platforms/${platformID}`);
+    var json = JSON.parse(res.getBody('utf8'));
+    return json.data.name;
+  } else if (arguments.length == 2 && typeof arguments[0] == 'string' && Array.isArray(arguments[1]) == true) {
+    var index = platformList[1].indexOf(platformID);
+    if (index != -1) {
+      return platformList[0][index];
+    } else {
+      return '[Err] Platform not found!';
+    }
   } else {
-    
-  }
-  // Search game name in array of names
-  var index = gameList[0].indexOf(gameName);
-  if (index != -1) {
-    return gameList[1][index];
-  } else {
-    return '[Err] Game not found!';
+    return '[Err] No platformID!'
   }
 } //}}}
 
-function getGameRecord(gameID, categories) { //{{{
-  
-  var recordPs = [];
-  // Check for arguments length
+function userID2name(userID) { //{{{
   if (arguments.length == 0) {
-    return '[Err] Needed ID of the game!';
-  } else if (arguments.length == 1) {
-    var categories = getGameCategories(gameID);
-  } else {
-    
+    return '[Err] Needed playerID!';
+  } else if (userID && typeof userID == 'string') {
+    var res = request('GET', `${URL}/api/v1/users/${userID}`);
+    var json = JSON.parse(res.getBody('utf8'));
+    var data = json.data;
+    var user = {
+      ID: data.id,
+      name: data.names.international
+    }
+    if (data.twitch.uri) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
+    if (data.twitter.uri) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
+    if (data.youtube.uri) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
+    return user;
   }
+} //}}}
+
+function getWR(gameName) {
   
-  console.log(categories);
-  var catLength = categories.length;
-  for (var i = 0; i < catLength; i++) {
-    var p = fetch(`${URL}/api/v1/leaderboards/${gameID}/category/${categories[i]}?_top=1`)
-      .then((res) => res.json()).then((json) => json.data);
-    console.log(p);
-    recordPs.push(p);
-  }
-
-
-  Promise.all(recordPs)
-    .then(vals => console.log(vals));
-}//}}}
-
-function getGameCategories(gameID) { //{{{
-// Note: work properly!
-  return fetch(`${URL}/api/v1/games/${gameID}/categories`)
-    .then((res) => res.json())
-    .then((json) => {
-      var data = json.data;
-      var catLength = data.length;
-      var categories = [[], []];
-      for (var i = 0; i < catLength; i++) {
-        categories[0].push(data[i].name);
-        categories[1].push(data[i].id);
-      }
-      return categories;
-    });
-}//}}}
-
-// Test
-var options = { //{{{
-method: 'GET',
-headers: {
-  'User-Agent': 'twitch-wr-bot/0.1',
-  Accept: 'application/json',
-  'content-type': 'application/json',
-  connection: 'close'
-         },
-body: null,
-redirect: 'follow',
-follow: 20,
-timeout: 0,
-compress: true,
-size: 0,
-body: 'string',
-agent: null
-}; //}}}
-
-// === for chat
-
-function print_data_to_chat(data){//{{{
-
-}//}}}
+}
 
 // ========== tests
 
 
-//var gameList = loadGameList();
 
 //var gameID = 'lde2m5d3';
+
 var gameName = 'Titanfall'
-
-var gameID = getGameID(gameName);
-
-getGameRecord(gameID)
-  /*.then((res) => {
-    var test = res;
-    console.log(test);
-});*/
+getWR(gameName);
