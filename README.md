@@ -1,4 +1,4 @@
 # spapi
-***
-  *Installing:* `npm install srapi`
+
+Installing: `npm install srapi`
   
