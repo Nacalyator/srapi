@@ -201,9 +201,9 @@ function userID2name(userID) { //{{{
       ID: data.id,
       name: data.names.international
     }
-    if (data.twitch.uri) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
-    if (data.twitter.uri) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
-    if (data.youtube.uri) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
+    if (data.twitch != null) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
+    if (data.twitter != null) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
+    if (data.youtube != null) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
     return user;
   }
 } //}}}
