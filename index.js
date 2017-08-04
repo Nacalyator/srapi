@@ -2,6 +2,20 @@
 const request = require('sync-request');
 const fs = require("fs");
 
+// ========== Exports {{{
+
+module.exports.getGameList = getGameList;
+module.exports.getPlatformList = getPlatformList;
+module.exports.getGameID = getGameID;
+module.exports.getGameCategories = getGameCategories;
+module.exports.getGameLeaderboard = getGameLeaderboard;
+module.exports.loadGameList = loadGameList;
+module.exports.loadPlatformList = loadPlatformList;
+module.exports.platformID2name = platformID2name;
+module.exports.userID2name = userID2name;
+module.exports.WR = WR;
+
+// }}}
 
 // ========== data {{{
 const SERVER = "www.speedrun.com";
@@ -25,7 +39,7 @@ const options = { //{{{
 
 // ===== GET
 
-exports.getGameList = function() { //{{{
+function getGameList () { //{{{
 //Note: Work properly!
   var gameList = [[], []];
   var paginator = 0;
@@ -53,7 +67,7 @@ exports.getGameList = function() { //{{{
   return gameList;
 }//}}}
 
-exports.getPlatformList = function() { //{{{
+function getPlatformList() { //{{{
   var platformList = [[], []];
   var res = request('GET', `${URL}/api/v1/platforms`);
   var json = JSON.parse(res.getBody('utf8'));
@@ -69,7 +83,7 @@ exports.getPlatformList = function() { //{{{
   return platformList;
 } //}}}
 
-exports.getGameID = function(gameName, gameList) { //{{{
+function getGameID(gameName, gameList) { //{{{
 //Note: work properly!
   // Check for arguments length
   if (arguments.length == 0) {
@@ -87,7 +101,7 @@ exports.getGameID = function(gameName, gameList) { //{{{
   }
 } //}}}
 
-exports.getGameCategories = function(gameID) { //{{{
+function getGameCategories(gameID) { //{{{
 // Note: work properly!
   if (!gameID && typeof gameID != 'string') {
     return '[Err] Needed gameID!';
@@ -107,7 +121,7 @@ exports.getGameCategories = function(gameID) { //{{{
   return categories;
 }//}}}
 
-exports.getGameLeaderboard = function(gameID, categories) { //{{{
+function getGameLeaderboard(gameID, categories) { //{{{
   var leaderboards = [];
   // Check for arguments length
   if (arguments.length == 0) {
@@ -120,16 +134,18 @@ exports.getGameLeaderboard = function(gameID, categories) { //{{{
       var res = request('GET', `${URL}/api/v1/leaderboards/${gameID}/category/${categories[i].ID}?_top=1`);
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
-      var record = { //{{{
-        gameID: data.runs[0].run.game,
-        platformID: data.runs[0].run.system.platform,
-        categoryID: data.runs[0].run.category,
-        runID: data.runs[0].run.id,
-        userID: data.runs[0].run.players[0].id,
-        time_s: data.runs[0].run.times.realtime_t,
-        time_t:  data.runs[0].run.times.realtime
-      }; //}}}
-    leaderboards.push(record);
+      if (data.runs[0] != undefined) {
+        var record = { //{{{
+          gameID: data.game,
+          platformID: data.runs[0].run.system.platform,
+          categoryID: data.category,
+          runID: data.runs[0].run.id,
+          userID: data.runs[0].run.players[0].id,
+          time_s: data.runs[0].run.times.realtime_t,
+          time_t:  (data.runs[0].run.times.realtime != null) ? data.runs[0].run.times.realtime : data.runs[0].run.times.primary
+        }; //}}}
+      leaderboards.push(record);
+      }
     }
   } else {
   return '[Err] Impossible to get game categories!';
@@ -139,7 +155,7 @@ exports.getGameLeaderboard = function(gameID, categories) { //{{{
 
 // ===== Load
 
-exports.loadGameList = function() { //{{{
+function loadGameList() { //{{{
   if (!fs.existsSync(gamelist_path)) {
     return getGameList();
   } else {
@@ -147,7 +163,7 @@ exports.loadGameList = function() { //{{{
   }
 } //}}}
 
-exports.loadPlatformList = function() { //{{{
+function loadPlatformList() { //{{{
   if (!fs.existsSync(platformlist_path)) {
     return getPlatformList();
   } else {
@@ -157,7 +173,7 @@ exports.loadPlatformList = function() { //{{{
 
 // ===== Convert IDs
 
-exports.platformID2name = function(platformID, platformList) { //{{{
+function platformID2name(platformID, platformList) { //{{{
   if (arguments.length == 1 && typeof arguments[0] == 'string') {
     var res = request('GET', `${URL}/api/v1/platforms/${platformID}`);
     var json = JSON.parse(res.getBody('utf8'));
@@ -174,7 +190,7 @@ exports.platformID2name = function(platformID, platformList) { //{{{
   }
 } //}}}
 
-exports.userID2name = function(userID) { //{{{
+function userID2name(userID) { //{{{
   if (arguments.length == 0) {
     return '[Err] Needed playerID!';
   } else if (userID && typeof userID == 'string') {
@@ -194,7 +210,7 @@ exports.userID2name = function(userID) { //{{{
 
 // ===== For twitch
 
-exports.WR = function(gameName, gameList) { //{{{
+function WR(gameName, gameList) { //{{{
   // load all data
   if (!gameList) var gameList = loadGameList();
   var gameID = getGameID(gameName, gameList);
@@ -204,17 +220,8 @@ exports.WR = function(gameName, gameList) { //{{{
   var buff = leaderboards.length;
   for (var i = 0; i < buff; i++) {
     var userData = userID2name(leaderboards[i].userID);
-    MSG = MSG.concat(` ${gameCategories[i].name} ${leaderboards[i].time_t} (${platformID2name(leaderboards[i].platformID)}) by ${userData.name} (${userData.twitch}) ${i == buff - 1 ? '': '|||'}`);
+    MSG = MSG.concat(` ${gameCategories[i].name} ${leaderboards[i].time_t} (${platformID2name(leaderboards[i].platformID)}) by ${userData.name} (${userData.twitch}) ${i == buff - 1 ? '': '||'}`);
   }
   return MSG;
 } //}}}
 
-// ========== tests
-
-
-
-//var gameID = 'lde2m5d3';
-/*
-var gameName = 'Titanfall';
-console.log(WR(gameName));
-*/
