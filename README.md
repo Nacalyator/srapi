@@ -1,7 +1,7 @@
 # srapi - simple speedrun.com API
 
 ## Installation
-npm install srapi
+`npm install srapi`
 
 ## About
 * Synchronous. Based on [sync-request](https://github.com/ForbesLindesay/sync-request)
