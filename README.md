@@ -86,5 +86,7 @@ var MSG = srapi.WR(gameName[, gameList])
 Example:
 ```javascript
 var message = srapi.WR('Dark Souls');
-Game: 'Dark Souls'. Any% PT41M13S (PC) by CapitaineToinon (CapitaineToinon) || Any% Kiln Skip PT20M45S (PC) by CapitaineToinon (CapitaineToinon) || All Bosses PT1H10M46S (PC) by Kahmul (kahmul78) || All Achievements PT4H50M38S (PC) by NaxHPL (naxhpl)  
+
+Output:
+'Game: 'Dark Souls'. Any% PT41M13S (PC) by CapitaineToinon (CapitaineToinon) || Any% Kiln Skip PT20M45S (PC) by CapitaineToinon (CapitaineToinon) || All Bosses PT1H10M46S (PC) by Kahmul (kahmul78) || All Achievements PT4H50M38S (PC) by NaxHPL (naxhpl)'
 ```
