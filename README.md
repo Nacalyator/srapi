@@ -1,4 +1,4 @@
 # spapi
-
-  * `npm install`
-  * `npm run start`
+***
+  *Installing:* `npm install srapi`
+  
