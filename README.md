@@ -1,6 +1,5 @@
 # srapi - simple speedrun.com API
 
-<<<<<<< HEAD
 ## Installation
 npm install srapi
 
@@ -89,7 +88,3 @@ Example:
 var message = srapi.WR('Dark Souls');
 Game: 'Dark Souls'. Any% PT41M13S (PC) by CapitaineToinon (CapitaineToinon) || Any% Kiln Skip PT20M45S (PC) by CapitaineToinon (CapitaineToinon) || All Bosses PT1H10M46S (PC) by Kahmul (kahmul78) || All Achievements PT4H50M38S (PC) by NaxHPL (naxhpl)  
 ```
-=======
-Installing: `npm install srapi`
-  
->>>>>>> 706e2268733d3d1d244c28e3eef6bec541e741fb
