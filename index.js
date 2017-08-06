@@ -4,6 +4,8 @@ const fs = require("fs");
 
 // ========== Exports {{{
 
+module.exports.searchGame = searchGame;
+module.exports.searchUser = searchUser;
 module.exports.getGameList = getGameList;
 module.exports.getPlatformList = getPlatformList;
 module.exports.getGameID = getGameID;
@@ -36,6 +38,94 @@ const options = { //{{{
 //}}}
 
 // ========== API
+
+// ===== Search
+
+function searchGame(gameToSearch, numOfRs) { //{{{
+  var results = [[], []];
+  var counter = 0;
+  var fixedName = gameToSearch.replace(' ', '_');
+  // Try get games list
+  // {{{
+  var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`);
+  var json = JSON.parse(gamesRes.getBody('utf8'));
+  var gameData = json.data;
+  if (gameData.length == 0) {
+    var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&abbreviation=${fixedName}`);
+    var json = JSON.parse(gamesRes.statusCodegetBody('utf8'));
+    var gameData = json.data;
+  }
+  // }}}
+  // Try get game series list
+  // {{{
+  var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&name=${fixedName}`);
+  var json = JSON.parse(seriesRes.getBody('utf8'));
+  var seriesData = json.data;
+  if (seriesData.length == 0) {
+    var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&abbreviation=${fixedName}`);
+    var json = JSON.parse(seriesRes.getBody('utf8'));
+    var seriesData = json.data;
+  }
+  // }}}
+  // Check for 2 results length
+  if (gameData.length == 0 && seriesData.length == 0) {
+    return '[Msg] Game not found!';
+  }
+  // Adding games to results from games list
+  // {{{
+  var resultLength = gameData.length;
+  for (var i = 0; i < resultLength && counter < numOfRs; i++) {
+    results[1].push(gameData[i].id);
+    if (gameData[i].names.hasOwnProperty('twitch')) {
+      results[0].push(gameData[i].names.twitch);
+    } else {
+      results[0].push(gameData[i].names.international);
+    }
+    counter++;
+  }
+  // }}}
+  // Adding games to results from game series list
+  // {{{
+  var seriesLength = seriesData.lengt;
+  for (var i = 0; i < seriesLength && counter < numOfRs; i++) {
+    var res = request('GET', `${URL}/api/v1/series/${id}/games?_bulk=yes`);
+    var json = JSON.parse(res.getBody('utf8'));
+    var data = json.data;
+    var dataLength = data.lengt;
+    for (var j = 0; j < dataLength && counter < numOfRs; j++) {
+      results[1].push(data[j].id)
+      if (data[j].names.hasOwnProperty('twitch')) {
+        results[0].push(data[j].names.twitch);
+      } else {
+        results[0].push(data[j].names.international);
+      }
+      counter++;
+    }
+  }
+  // }}}
+  return results;
+} //}}}
+
+function searchUser(userToSearch, numOfRs) { //{{{
+  var results = [[], []];
+  var fixedName = userToSearch.replace(' ', '%20');
+  var res = request('GET', `${URL}/api/v1/users?_bulk=yes&max=${numOfRs}&name=${fixedName}`);
+  var json = JSON.parse(res.getBody('utf8'));
+  var data = json.data;
+  if (data.length == 0) {
+    return '[Msg] User not found!';
+  }
+  var resultLength = data.length;
+  for (var i = 0; i < resultLength; i++) {
+    results[1].push(data[i].id);
+    if (data[i].names.hasOwnProperty('international')) {
+      results[0].push(data[i].names.international);
+    } else {
+      results[0].push(data[i].names.japanese);
+    }
+  }
+  return results;
+} //}}}
 
 // ===== GET
 
@@ -225,3 +315,8 @@ function WR(gameName, gameList) { //{{{
   return MSG;
 } //}}}
 
+
+// ========== TEST
+
+
+console.log(searchGame('terra', 3));

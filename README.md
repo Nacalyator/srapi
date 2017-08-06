@@ -10,7 +10,7 @@
 ## ToDo
 - [ ] Asynchronous version
 - [ ] Cache for userID and usernames
-- [ ] Search by gamename
+- [x] Search game and users
 - [ ] Optimization
 
 ## Usage
