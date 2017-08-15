@@ -13,10 +13,10 @@ Features:
 - [ ] Asynchronous version
 - [x] Search game and users
 - [ ] Optimization (too slow):
-    [x] List of games and platforms loads only once
-    [ ] Search games in internal base using [similarity](https://www.npmjs.com/package/similarity)
-    [ ] Increase stability by try-catch
-    [ ] Something else...
+-   [x] List of games and platforms loads only once
+-   [ ] Search games in internal base using [similarity](https://www.npmjs.com/package/similarity)
+-   [ ] Increase stability by try-catch
+-   [ ] Something else...
 - [x] Parsing chat commands
 - [x] Logs
 - [ ] Add examples
