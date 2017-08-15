@@ -24,15 +24,13 @@ const SERVER = "www.speedrun.com";
 const URL = `http://${SERVER}`;
 const gamelist_path = './gamelist.json';
 const platformlist_path = './platformlist.json';
-const headers = { //{{{
-  'User-Agent': 'twitch-wr-bot(Nacalyator)/0.0.1',
-  'content-type': 'application/json'
-}; //}}}
 const options = { //{{{
-  headers: headers,
+  headers: { //{{{
+    'User-Agent': 'twitch-wr-bot(Nacalyator)/0.0.1',
+    'content-type': 'application/json'
+  }, //}}}
   followRedirects: true,
   maxRedirects: 20,
-  gzip: true,
   maxRetr: 10
 }; //}}}
 //}}}
@@ -47,22 +45,22 @@ function searchGame(gameToSearch, numOfRs) { //{{{
   var fixedName = gameToSearch.replace(' ', '_');
   // Try get games list
   // {{{
-  var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`);
+  var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`, options);
   var json = JSON.parse(gamesRes.getBody('utf8'));
   var gameData = json.data;
   if (gameData.length == 0) {
-    var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&abbreviation=${fixedName}`);
+    var gamesRes = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&abbreviation=${fixedName}`, options);
     var json = JSON.parse(gamesRes.statusCodegetBody('utf8'));
     var gameData = json.data;
   }
   // }}}
   // Try get game series list
   // {{{
-  var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&name=${fixedName}`);
+  var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&name=${fixedName}`, options);
   var json = JSON.parse(seriesRes.getBody('utf8'));
   var seriesData = json.data;
   if (seriesData.length == 0) {
-    var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&abbreviation=${fixedName}`);
+    var seriesRes = request('GET', `${URL}/api/v1/series?_bulk=yes&max=${numOfRs}&abbreviation=${fixedName}`, options);
     var json = JSON.parse(seriesRes.getBody('utf8'));
     var seriesData = json.data;
   }
@@ -88,7 +86,7 @@ function searchGame(gameToSearch, numOfRs) { //{{{
   // {{{
   var seriesLength = seriesData.lengt;
   for (var i = 0; i < seriesLength && counter < numOfRs; i++) {
-    var res = request('GET', `${URL}/api/v1/series/${id}/games?_bulk=yes`);
+    var res = request('GET', `${URL}/api/v1/series/${id}/games?_bulk=yes`, options);
     var json = JSON.parse(res.getBody('utf8'));
     var data = json.data;
     var dataLength = data.lengt;
@@ -107,13 +105,16 @@ function searchGame(gameToSearch, numOfRs) { //{{{
 } //}}}
 
 function searchUser(userToSearch, numOfRs) { //{{{
+  if (arguments.length == 0 || typeof userToSearch != 'string') {
+    return '[Err] Nothing to search';
+  }
   var results = [[], []];
   var fixedName = userToSearch.replace(' ', '%20');
-  var res = request('GET', `${URL}/api/v1/users?_bulk=yes&max=${numOfRs}&name=${fixedName}`);
+  var res = request('GET', `${URL}/api/v1/users?_bulk=yes&max=${numOfRs}&name=${fixedName}`, options);
   var json = JSON.parse(res.getBody('utf8'));
   var data = json.data;
   if (data.length == 0) {
-    return '[Msg] User not found!';
+    return '[Msg] Unable to find user: User not found!';
   }
   var resultLength = data.length;
   for (var i = 0; i < resultLength; i++) {
@@ -130,7 +131,6 @@ function searchUser(userToSearch, numOfRs) { //{{{
 // ===== GET
 
 function getGameList () { //{{{
-//Note: Work properly!
   var gameList = [[], []];
   var paginator = 0;
   var onPage = 1000;
@@ -139,7 +139,7 @@ function getGameList () { //{{{
   }
   for (var i = 0; i <=  12; i++) {
     paginator = onPage * i; 
-    var res = request('GET', `${URL}/api/v1/games?_bulk=yes&max=${onPage}&offset=${paginator}`);
+    var res = request('GET', `${URL}/api/v1/games?_bulk=yes&max=${onPage}&offset=${paginator}`, options);
     var json = JSON.parse(res.getBody('utf8'));
     var data = json.data;
     var dataLength = data.length;
@@ -159,14 +159,13 @@ function getGameList () { //{{{
 
 function getPlatformList() { //{{{
   var platformList = [[], []];
-  var res = request('GET', `${URL}/api/v1/platforms`);
+  var res = request('GET', `${URL}/api/v1/platforms`, options);
   var json = JSON.parse(res.getBody('utf8'));
   var data = json.data;
   var dataLength = data.length;
   for (var i = 0; i < dataLength; i++) {
     platformList[0].push(data[i].name);
     platformList[0].push(data[i].id);
-    console.log(data[i]);
   }
   if (!fs.existsSync(platformlist_path));
   fs.writeFileSync(platformlist_path, JSON.stringify(platformList, null, '\t'));
@@ -175,18 +174,37 @@ function getPlatformList() { //{{{
 
 function getGameID(gameName, gameList) { //{{{
 //Note: work properly!
-  // Check for arguments length
+  // Check for arguments
   if (arguments.length == 0) {
     return '[Err] Needed name of game!';
-  } else if (typeof gameName == 'string') {
-    if (!gameList || Array.isArray(gameList) == false) {
-      var gameList = loadGameList();
-    }
+  }
+  // If only 1 arg make request
+  else if (typeof gameName == 'string' && (!gameList || Array.isArray(gameList) == false)) {
+    var fixedName = gameName.replace(' ', '%20');
+    var res = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`, options);
+    var json = JSON.parse(res.getBody('utf8'));
+    return json.data[0].id;
+  }
+  // If 2 args read json and search
+  else if (typeof gameName == 'string' && Array.isArray(gameList) == true && gameList.length > 0) {
     var index = gameList[0].indexOf(gameName);
+    // Return if founded
     if (index != -1) {
       return gameList[1][index];
-    } else {
-      return '[Err] Game not found!';
+    }
+    // If not found make request
+    else {
+      var fixedName = gameName.replace(' ', '%20');
+      var res = request('GET', `${URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`, options);
+      var json = JSON.parse(res.getBody('utf8'));
+      // If founded return
+      if (typeof json.data[0].id == 'string') {
+        return json.data[0].id;
+      }
+      // If not found return error
+      else {
+        return '[Err] Game not found!';
+      }
     }
   }
 } //}}}
@@ -197,7 +215,7 @@ function getGameCategories(gameID) { //{{{
     return '[Err] Needed gameID!';
   }
   var categories = [];
-  var res = request('GET', `${URL}/api/v1/games/${gameID}/categories`);
+  var res = request('GET', `${URL}/api/v1/games/${gameID}/categories`, options);
   var json = JSON.parse(res.getBody('utf8'));
   var data = json.data;
   var catLength = data.length;
@@ -209,7 +227,7 @@ function getGameCategories(gameID) { //{{{
     categories.push(category);
   }
   return categories;
-}//}}}
+} //}}}
 
 function getGameLeaderboard(gameID, categories) { //{{{
   var leaderboards = [];
@@ -221,7 +239,7 @@ function getGameLeaderboard(gameID, categories) { //{{{
   } else if (arguments.length == 2 && typeof gameID == 'string' && Array.isArray(categories) == true) {
     var catLength = categories.length;
     for (var i = 0; i < catLength; i++) {
-      var res = request('GET', `${URL}/api/v1/leaderboards/${gameID}/category/${categories[i].ID}?_top=1`);
+      var res = request('GET', `${URL}/api/v1/leaderboards/${gameID}/category/${categories[i].ID}?_top=1`, options);
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       if (data.runs[0] != undefined) {
@@ -243,7 +261,32 @@ function getGameLeaderboard(gameID, categories) { //{{{
   return leaderboards;
 }//}}}
 
-// ===== Load
+function getUserPB(userID) { //{{{
+  if (arguments.length == 0 || typeof userID != 'string') {
+    return '[Err] Unable to get user\'s PB: Nothing to search'
+  }
+  var gameList = loadGameList();
+  var platformList = loadPlatformList();
+  var results = [[], [], [], []];
+  var res = request('GET', `${URL}/api/v1/users/${userID}/personal-bests?top=3`, options);
+  var json = JSON.parse(res.getBody('utf8'));
+  var data = json.data;
+  if (data == []) {
+    return '[Err] Unable to get user\'s PB: User not found';
+  }
+  var dataLength = data.length;
+  for (var i = 0; i < dataLength; i++) {
+    if (data[i].run.status.status == 'verified') {
+      results[0].push(data[i].place);
+      results[1].push(gameID2name(data[i].run.game));
+      results[2].push(platformID2name(data[i].run.system.platform));
+      results[3].push(data[i].run.times.primary);
+    }
+  }
+  return results;
+} //}}}
+
+// ========== Load
 
 function loadGameList() { //{{{
   if (!fs.existsSync(gamelist_path)) {
@@ -261,11 +304,51 @@ function loadPlatformList() { //{{{
   }
 } //}}}
 
-// ===== Convert IDs
+// ========== Converts
+
+function userID2name(userID) { //{{{
+  if (arguments.length == 0) {
+    return '[Err] Needed playerID!';
+  } else if (userID && typeof userID == 'string') {
+    var res = request('GET', `${URL}/api/v1/users/${userID}`, options);
+    var json = JSON.parse(res.getBody('utf8'));
+    var data = json.data;
+    var user = {
+      ID: data.id,
+      name: data.names.international
+    }
+    if (data.twitch != null) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
+    if (data.twitter != null) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
+    if (data.youtube != null) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
+    return user;
+  }
+} //}}}
+
+function gameID2name(gameID) { //{{{
+  if (arguments.lengt == 0 || typeof gameID != 'string' || gameID.length < 1) {
+    console.log('[Err] [getGameID] Check arguments');
+    return null;
+  } else if (typeof gameID == 'string' && gameID.length > 0) {
+    var res = request('GET', `${URL}/api/v1/games/${gameID}`, options);
+    var json = JSON.parse(res.getBody('utf8'));
+    if (Array.isArray(json.data) && json.data.length > 0) {
+      var data = json.data;
+      if (data.names.hasOwnProperty('twitch')) {
+        return data.names.twitch;
+      } else {
+        return data.names.international;
+      }
+    } else {
+      console.log('[Err] [getGameID] Server not responce');
+      return null;
+    }
+  }
+
+}; //}}}
 
 function platformID2name(platformID, platformList) { //{{{
   if (arguments.length == 1 && typeof arguments[0] == 'string') {
-    var res = request('GET', `${URL}/api/v1/platforms/${platformID}`);
+    var res = request('GET', `${URL}/api/v1/platforms/${platformID}`, options);
     var json = JSON.parse(res.getBody('utf8'));
     return json.data.name;
   } else if (arguments.length == 2 && typeof arguments[0] == 'string' && Array.isArray(arguments[1]) == true) {
@@ -280,25 +363,26 @@ function platformID2name(platformID, platformList) { //{{{
   }
 } //}}}
 
-function userID2name(userID) { //{{{
-  if (arguments.length == 0) {
-    return '[Err] Needed playerID!';
-  } else if (userID && typeof userID == 'string') {
-    var res = request('GET', `${URL}/api/v1/users/${userID}`);
-    var json = JSON.parse(res.getBody('utf8'));
-    var data = json.data;
-    var user = {
-      ID: data.id,
-      name: data.names.international
-    }
-    if (data.twitch != null) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
-    if (data.twitter != null) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
-    if (data.youtube != null) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
-    return user;
-  }
-} //}}}
+function PT2normal(PT) { //{{{
+  return PT.substring(2).toLowerCase().replace(/(\D{1})(\d{1})/igm, '$1 $2');
+}; //}}}
 
-// ===== For twitch
+// ========== CHAT
+// Commands:
+// !wr [gamename]
+// !upb [username]
+// !su[NumOfR] [username]
+// !sg[NumOfR] [gamename]
+
+function parseCMD(msg) { //{{{
+  var CMD, counter, parameter;
+  var pattern = /(^\![a-z]+)([0-9]*)(\s)(.+)/igm;
+  var buff = pattern.exec(msg);
+  CMD = buff[1];
+  counter = buff[2];
+  parameter = buff[4];
+  return [CMD, counter, parameter];
+} //}}}
 
 function WR(gameName, gameList) { //{{{
   // load all data
@@ -316,7 +400,9 @@ function WR(gameName, gameList) { //{{{
 } //}}}
 
 
+
 // ========== TEST
 
-
-console.log(searchGame('terra', 3));
+var user = searchUser('sudalv');
+var sudalv = user[1][0];
+console.log(getUserPB(sudalv));
