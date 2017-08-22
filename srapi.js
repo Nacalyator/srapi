@@ -1,7 +1,7 @@
 'use strict';
 const request = require('sync-request');
 const fs = require('fs');
-//const similarity = require('similarity')
+const stringSimilarity = require('string-similarity');
 
 // ========== API object
 
@@ -12,27 +12,39 @@ var srapi = module.exports = function() { //{{{
     URL: `https://www.speedrun.com`,
     GLP: 'gamelist.json',
     PLP: 'platformlist.json',
-    LP: 'log.txt',
-    request: {
+    LP: 'log.log',
+    ELP: 'err-log.log',
+    _debug: true,
+    _simTreshold: 0.45,
+    request: { //{{{
       headers: {
-        'User-Agent': 'srapi(NodeJS)/0.0.5',
+        'User-Agent': 'srapi(NodeJS)/0.0.6',
         'content-type': 'application/json'
       },
       followRedirects: true,
       maxRedirects: 20,
       maxRetr: 10
-    }
+    } //}}}
   };
   //}}}
+  // ===== Initializating {{{
   this._gameList = [];
   this._platformList = [];
-  this.logger = fs.createWriteStream(this.options.LP, {
-    flags: 'a',
-    defaultEncoding: 'utf8',
-    autoClose: true
-  })
-}
-//}}}
+  this.loadGameList();
+  this.loadPlatformList();
+  if (this.options._debug === true) {
+    this.logger = fs.createWriteStream(this.options.LP, {
+      flags: 'a',
+      defaultEncoding: 'utf8',
+      autoClose: true
+    });
+    this.errlogger = fs.createWriteStream(this.options.ELP, {
+      flags: 'a',
+      defaultEncoding: 'utf8',
+      autoClose: true
+    })
+  }; //}}}
+} //}}}
 
 // ===== GET methods
 
@@ -40,11 +52,17 @@ srapi.prototype.getGameList = function() { //{{{
   var self = this;
   var paginator = 0;
   var onPage = 1000;
-  if (!fs.existsSync(this.GLP)) fs.WriteStream(this.options.GLP);
-  for (var i = 0; i < 15; i++) {
+  var indicator = 1;
+  var i = 0;
+  while (indicator > 0) {
     paginator = onPage * i;
-    var res = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=${onPage}&offset=${paginator}`, this.options.request);
-    if (res.statusCode == 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=${onPage}&offset=${paginator}`, this.options.request);
+    }
+    catch (err) {
+      if (this._debug) this._errlogger(err);
+    }
+    if (res && res.statusCode == 200) {
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       var dataLength = data.length;
@@ -52,23 +70,36 @@ srapi.prototype.getGameList = function() { //{{{
         this._gameList.push([data[j].id, data[j].names.international]);
       }
     }
+    indicator = dataLength;
+    i++;
   }
   fs.writeFileSync(this.options.GLP, JSON.stringify(this._gameList, null, '\t'));
 } //}}}
 
 srapi.prototype.getPlatformList = function() { //{{{
-  if (!fs.existsSync(this.PLP)) fs.WriteStream(this.options.PLP);
-  var res = request('GET', `${this.options.URL}/api/v1/platforms`, this.options.request);
-  if (res.statusCode == 200) {
-    var json = JSON.parse(res.getBody('utf8'));
-    var data = json.data;
-    var dataLength = data.length;
-    for (var i = 0; i < dataLength; i++) {
-      this._platformList.push([data[i].id, data[i].name]);
+  var self = this;
+  var paginator = 0;
+  var onPage = 20;
+  var indicator = 1;
+  var i = 0;
+  while (indicator > 0) {
+    paginator = onPage * i;
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/platforms?max=${onPage}&offset=${paginator}`, this.options.request);
     }
-
-  } else {
-    console.log('[Err] [getPlatformList] Server unavaliable!');
+    catch (err) {
+      if (this._debug) this._errlogger(err);
+    }
+    if (res && res.statusCode == 200) {
+      var json = JSON.parse(res.getBody('utf8'));
+      var data = json.data;
+      var dataLength = data.length;
+      for (var j = 0; j < dataLength; j++) {
+        this._platformList.push([data[j].id, data[j].name]);
+      }
+    }
+    indicator = dataLength;
+    i++;
   }
   fs.writeFileSync(this.options.PLP, JSON.stringify(this._platformList, null, '\t'));
 } //}}}
@@ -77,27 +108,40 @@ srapi.prototype.getGameID = function(gameName) { //{{{
   var self = this;
   if (arguments.length === 0) {
     return null;
-    console.log('[Err] [getGameID] Needed name of game!');
-  } else if ((typeof gameName === 'string') && gameName.length > 0) {
+    console.log('[Err] [getGameID] Need arguments!');
+  } else if (gameName && (typeof gameName === 'string') && gameName.length > 0) {
     if (this._gameList.lengt === 0) this.loadGameList();
-    var index = this._gameList.findIndex((el) => el[1] == gameName);
+    var index = this._gameList.findIndex((el) => el[1] === gameName);
     if (index != -1) {
       return this._gameList[index][0];
     } else {
-      console.log('[Err] [getGameID] Game not found!')
-      return null;
+      var result = this.searchGameLocaly(gameName, 1);
+      if (result && (result.lengt > 0)) {
+        return result[0][1];
+      } else {
+        console.log('[Err] [getGameID] Cannot find game!')
+        return null;
+      }
     }
   } else {
-    console.log('[Err] [getGameID] Argument is not a string!')
+    console.log('[Err] [getGameID] Wrong argument!')
     return null;
   }
 } //}}}
 
 srapi.prototype.getGameCategories = function(gameID) { //{{{
-  if (gameID && (typeof gameID == 'string') && (gameID.length > 0)) {
+  if (arguments.length === 0) {
+    return null;
+    console.log('[Err] [getGameCategories] Need arguments!');
+  } else if (gameID && (typeof gameID == 'string') && (gameID.length > 0)) {
     var categories = [];
-    var res = request('GET', `${this.options.URL}/api/v1/games/${gameID}/categories`, this.options.request);
-    if (res.statusCode == 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/games/${gameID}/categories`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       var catLength = data.length;
@@ -117,19 +161,24 @@ srapi.prototype.getGameCategories = function(gameID) { //{{{
 
 srapi.prototype.getGameLeaderboard = function(gameID, categories) { //{{{
   var leaderboards = [];
-  if (arguments.length == 0) {
-    console.log('[Err] [getGameLeaderboard] ')
+  if (arguments.length === 0) {
+    console.log('[Err] [getGameLeaderboard] Need arguments!')
     return null;
-  } else if ((arguments.length === 1) && (typeof gameID === 'string') && (gameID.length > 0)) {
+  } else if ((arguments.length === 1) && gameID && (typeof gameID === 'string') && (gameID.length > 0)) {
     return this.getGameLeaderboard(gameID, this.getGameCategories(gameID));
-  } else if (gameID && categories && (typeof gameID == 'string') && Array.isArray(categories) && (gameID.length > 0) && (categories.length > 0)) {
+  } else if (gameID && categories && (typeof gameID === 'string') && Array.isArray(categories) && (gameID.length > 0) && (categories.length > 0)) {
     var catLength = categories.length;
     for (var i = 0; i < catLength; i++) {
-      var res = request('GET', `${this.options.URL}/api/v1/leaderboards/${gameID}/category/${categories[i][0]}?_top=1`, this.options.request);
-      if (res.statusCode === 200) {
+      try {
+        var res = request('GET', `${this.options.URL}/api/v1/leaderboards/${gameID}/category/${categories[i][0]}?_top=1`, this.options.request);
+      }
+      catch (err) {
+        this._errlogger(err);
+      }
+      if (res && res.statusCode === 200) {
         var json = JSON.parse(res.getBody('utf8'));
         var data = json.data;
-        if (data.runs[0] != undefined) {
+        if (data.runs[0] !== undefined) {
           var record = {
             gameID: data.game,
             platformID: data.runs[0].run.system.platform,
@@ -152,18 +201,23 @@ srapi.prototype.getGameLeaderboard = function(gameID, categories) { //{{{
 
 srapi.prototype.getUserPB = function(userID) { //{{{
   if (arguments.length === 0) {
-    console.log('[Err] [getUserPB] Needed arguments');
+    console.log('[Err] [getUserPB] Need argument!');
     return null;
   } else if (userID && (typeof userID === 'string') && (userID.length > 0)) {
     if (this._gameList.length === 0) this.loadGameList();
     if (this._platformList.length === 0) this.loadPlatformList();
     var results = [];
-    var res = request('GET', `${this.options.URL}/api/v1/users/${userID}/personal-bests?top=3`, this.options.request);
-    if (res.statusCode === 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/users/${userID}/personal-bests?top=3`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       var dataLength = data.length;
-      if (dataLength === 0) return results;
+      if (dataLength === 0) return null;
       for (var i = 0; i < dataLength; i++) {
         if (data[i].run.status.status === 'verified') {
           results.push([
@@ -176,11 +230,11 @@ srapi.prototype.getUserPB = function(userID) { //{{{
       }
       return results;
     } else {
-      console.log('[Err] [getUserPB] Server don\'t responce');
+      console.log('[Err] [getUserPB] Server don\'t responce!');
       return null;
     }
   } else {
-    console.log('[Err] [getUserPB] Wrong arguments');
+    console.log('[Err] [getUserPB] Wrong arguments!');
     return null;
   }
 } //}}}
@@ -188,42 +242,61 @@ srapi.prototype.getUserPB = function(userID) { //{{{
 // ===== SEARCH methods
 
 srapi.prototype.searchGame = function(gameToSearch, numOfRs) { //{{{
-  if (arguments.length === 0) {
-    console.log('[Err] [searchGame] Input arguments!');
-    return null;
-  } else if ((typeof gameToSearch !== 'string') || (gameToSearch.length < 1)) {
-    console.log('[Err] [searchGame] Wrong game name to search!');
+  if (arguments.length === 0 || typeof gameToSearch !== 'string' || gameToSearch.length < 1) {
+    console.log('[Err] [searchGame] Wrong arguments!');
     return null;
   }
+  if (!numOfRs) numOfRs = 20;
   var results = [];
   var counter = 0;
-  var fixedName = gameToSearch.replace(' ', '_');
+  var fixedName = gameToSearch.replace(' ', '%20');
   // Get list of game from server
   // {{{
-  var gamesRes = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`, this.options.request);
+  try {
+    var gamesRes = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&name=${fixedName}`, this.options.request);
+  }
+  catch (err) {
+    this._errlogger(err);
+  }
   var json = JSON.parse(gamesRes.getBody('utf8'));
   var gameData = json.data;
   if (gameData.length === 0) {
-    gamesRes = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&abbreviation=${fixedName}`, this.options.request);
-    json = JSON.parse(gamesRes.statusCodegetBody('utf8'));
+    try {
+      gamesRes = request('GET', `${this.options.URL}/api/v1/games?_bulk=yes&max=1000&orderby=similarity&abbreviation=${fixedName}`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    json = JSON.parse(gamesRes.getBody('utf8'));
     gameData = json.data;
   }
   // }}}
   // Get game series list
   // {{{
-  var seriesRes = request('GET', `${this.options.URL}/api/v1/series?_bulk=yes&max=${numOfRs}&name=${fixedName}`, this.options.request);
+  try {
+    var seriesRes = request('GET', `${this.options.URL}/api/v1/series?_bulk=yes&max=${numOfRs}&name=${fixedName}`, this.options.request);
+  }
+  catch (err) {
+    this._errlogger(err);
+  }
   json = JSON.parse(seriesRes.getBody('utf8'));
   var seriesData = json.data;
-  if (seriesData.length == 0) {
-    seriesRes = request('GET', `${this.options.URL}/api/v1/series?_bulk=yes&max=${numOfRs}&abbreviation=${fixedName}`, this.options.request);
+  if (seriesData.length === 0) {
+    try {
+      seriesRes = request('GET', `${this.options.URL}/api/v1/series?_bulk=yes&max=${numOfRs}&abbreviation=${fixedName}`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
     json = JSON.parse(seriesRes.getBody('utf8'));
     seriesData = json.data;
   }
   // }}}
   // Add data to results of search
   // {{{
-  if (gameData.length == 0 && seriesData.length == 0) {
+  if (gameData.length === 0 && seriesData.length === 0) {
     console.log(`[Msg] [searchGame] ${gameToSearch} not found!`);
+    return null;
   }
   // Gamelist
   var gameLength = gameData.length;
@@ -234,7 +307,12 @@ srapi.prototype.searchGame = function(gameToSearch, numOfRs) { //{{{
   // Serieslist
   var seriesLength = seriesData.lengt;
   for (var i = 0; i < seriesLength && counter < numOfRs; i++) {
-    var res = request('GET', `${this.options.URL}/api/v1/series/${id}/games?_bulk=yes`, this.options.request);
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/series/${id}/games?_bulk=yes`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
     var json = JSON.parse(res.getBody('utf8'));
     var data = json.data;
     var dataLength = data.lengt;
@@ -247,15 +325,50 @@ srapi.prototype.searchGame = function(gameToSearch, numOfRs) { //{{{
   return results;
 } //}}}
 
+srapi.prototype.searchGameLocaly = function(gameToSearch, numOfRs) { //{{{
+  if (arguments.length === 0 || typeof gameToSearch !== 'string' || gameToSearch.length < 1) {
+    console.log('[Err] [searchGameLocaly] Wrong arguments!');
+    return null;
+  }
+  if (!numOfRs) numOfRs = 20;
+  var results = [];
+  var simArray = [];
+  var similarity;
+  var gamesLength = this._gameList.length;
+  for (var i = 0; i < gamesLength; i++) {
+    similarity = stringSimilarity.compareTwoStrings(gameToSearch, this._gameList[i][1]);
+    if (similarity >= this.options._simTreshold) {
+      simArray.push([similarity, i]);
+    }
+  }
+  if (simArray.length === 0) {
+    console.log('[Msg] [searchGameLocaly] Nothing found!');
+    return null;
+  }
+  simArray.sort((a, b) => b[0] - a[0]);
+  if (simArray.length > numOfRs) simArray = simArray.slice(0, numOfRs);
+  var simLength = simArray.length;
+  for (var i = 0; i < simLength; i++) {
+    results.push([this._gameList[simArray[i][1]]]);
+  }
+  return results;
+} //}}}
+
 srapi.prototype.searchUser = function(userToSearch, numOfRs) { //{{{
   if (arguments.length === 0) {
     console.log('[Err] [searchUser] Needed arguments!');
     return null;
   } else if (userToSearch && (typeof userToSearch === 'string') && (userToSearch.length > 0)) {
+    if (!numOfRs) numOfRs = 20;
     var results = [];
     var fixedName = userToSearch.replace(' ', '%20');
-    var res = request('GET', `${this.options.URL}/api/v1/users?_bulk=yes&max=${numOfRs}&name=${fixedName}`, this.options.request);
-    if (res.statusCode === 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/users?_bulk=yes&max=${numOfRs}&name=${fixedName}`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       if (data.lengt === 0) {
@@ -280,7 +393,7 @@ srapi.prototype.searchUser = function(userToSearch, numOfRs) { //{{{
 // ===== LOAD methods
 
 srapi.prototype.loadGameList = function() { //{{{
-  if (!fs.existsSync(this.options.GLP)) {
+  if (!fs.existsSync(this.options.GLP) || this._gameList.length === 0) {
     this.getGameList();
   } else {
     this._gameList = JSON.parse(fs.readFileSync(this.options.GLP));
@@ -288,7 +401,7 @@ srapi.prototype.loadGameList = function() { //{{{
 } //}}}
 
 srapi.prototype.loadPlatformList = function() { //{{{
-  if (!fs.existsSync(this.options.PLP)) {
+  if (!fs.existsSync(this.options.PLP) || this._platformList.length === 0) {
     this.getPlatformList();
   } else {
     this._platformList = JSON.parse(fs.readFileSync(this.options.PLP));
@@ -302,16 +415,21 @@ srapi.prototype.userID2name = function(userID) { //{{{
     console.log('[Err] [userID2name] Needed argument');
     return null;
   } else if (userID && (typeof userID === 'string') && (userID.length > 0)) {
-    var res = request('GET', `${this.options.URL}/api/v1/users/${userID}`, this.options.request);
-    if (res.statusCode === 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/users/${userID}`, this.options.request);
+    }
+    catch(err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
       var json = JSON.parse(res.getBody('utf8'));
       var data = json.data;
       var user = {};
       user.ID = data.id;
       user.name = data.names.international;
-      if (data.twitch != null) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
-      if (data.twitter != null) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
-      if (data.youtube != null) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
+      if (data.twitch !== null) user.twitch = data.twitch.uri.match(/[^/]*$/gm)[0];
+      if (data.twitter !== null) user.twitter = data.twitter.uri.match(/[^/]*$/gm)[0];
+      if (data.youtube !== null) user.youtube = data.youtube.uri.match(/[^/]*$/gm)[0];
       return user;
     } else {
       console.log('[Err] [userID2name] Server status code is not 200');
@@ -328,8 +446,13 @@ srapi.prototype.gameID2name = function(gameID) { //{{{
     console.log('[Err] [getGameID] Need argument!');
     return null;
   } else if (gameID && (typeof gameID === 'string') && (gameID.length > 0)) {
-    var res = request('GET', `${this.options.URL}/api/v1/games/${gameID}`, this.options.request);
-    if (res.statusCode === 200) {
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/games/${gameID}`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
       var json = JSON.parse(res.getBody('utf8'));
       if (json.data) {
         var data = json.data;
@@ -352,21 +475,62 @@ srapi.prototype.gameID2name = function(gameID) { //{{{
   }
 } //}}}
 
+srapi.prototype.gameID2nameLocaly = function(gameID) { //{{{
+  if (arguments.length === 0) {
+    console.log('[Err] [gameID2nameLocaly] Nothing to search!');
+    return null;
+  } else if (gameID && (typeof gameID === 'string') && gameID.length > 0) {
+    if (this._gameList.length === 0) this.loadGameList();
+    var index = this._gameList.findIndex((el) => el[0] === gameID);
+    if (index != -1) {
+      return this._gameList[index][1];
+    } else {
+      return this.gameID2name(gameID);
+    }
+  } else {
+    console.log('[Err] [gameID2nameLocaly] Wrong argument!');
+    return null;
+  }
+} //}}}
+
 srapi.prototype.platformID2name = function(platformID) { //{{{
   if (arguments.lengt === 0) {
     console.log('[Err] [platformID2name] Need argument!');
     return null;
   } else if (platformID && (typeof platformID === 'string') && (platformID.length > 0)) {
-    var res = request('GET', `${this.options.URL}/api/v1/platforms/${platformID}`, this.options.request);
-    if (res.statusCode === 200) {
-    var json = JSON.parse(res.getBody('utf8'));
-    return json.data.name;
+    try {
+      var res = request('GET', `${this.options.URL}/api/v1/platforms/${platformID}`, this.options.request);
+    }
+    catch (err) {
+      this._errlogger(err);
+    }
+    if (res && res.statusCode === 200) {
+      var json = JSON.parse(res.getBody('utf8'));
+      return json.data.name;
     } else {
       console.log('[Err] [platformID2name] Server status code is not 200!');
       return null;
     }
   } else {
     console.log('[Err] [platformID2name] Wrong argument!');
+    return null;
+  }
+} //}}}
+
+srapi.prototype.platformID2nameLocaly = function(platformID) { //{{{
+  if (arguments.length === 0) {
+    console.log('[Err] [platformID2nameLocaly] Need argument!');
+    return null;
+  } else if (platformID && (typeof platformID === 'string') && (platformID.length > 0)) {
+    if (this._platformList.length === 0) this.loadPlatformList();
+    var index = this._platformList.findIndex((el) => el[0] === gameID);
+    if (index != -1) {
+      return this._platformList[index][1];
+    } else {
+      return this.platformID2name(gameID);
+    }
+  } else {
+    console.log('[Err] [platformID2nameLocaly] Wrong argument!');
     return null;
   }
 } //}}}
@@ -380,7 +544,6 @@ srapi.prototype.PT2normal = function(time_t) { //{{{
   } else {
     console.log('[Err] [PT2normal] Wrong argument!')
     return null;
-  }
 } //}}}
 
 // ========== CHAT
@@ -398,18 +561,35 @@ srapi.prototype.parseCMD = function(msg) { //{{{
     var CMD, counter, parameter;
     var pattern = /(^\![a-z]+)([0-9]*)(\s)(.+)/igm;
     var buff = pattern.exec(msg);
+    if (!buff) {
+      return null;
+    } else if (buff.length <=3 && buff.length >= 4) {
+      return null;
+    }
     CMD = buff[1];
     counter = buff[2];
     parameter = buff[4];
     switch(CMD) {
       case '!wr':
-        return this.WR(parameter);
+        var MSG = this.WR(parameter);
+        if (this._debug) this._logger(msg, MSG);
+        return MSG;
       case '!su':
-        return this.SU(parameter, counter);
+        var MSG = this.SU(parameter, counter);
+        if (this._debug) this._logger(msg, MSG);
+        return MSG;
       case '!sg':
-        return this.SG(parameter, counter);
+        var MSG = this.SG(parameter, counter);
+        if (this._debug) this._logger(msg, MSG);
+        return MSG;
       case '!upb':
-        return this.UPB(parameter);
+        var MSG = this.UPB(parameter);
+        if (this._debug) this._logger(msg, MSG);
+        return MSG;
+      case '!goose':
+        return this.GOOSE();
+      case '!about':
+        return this.ABOUT();
       default:
         console.log('[Msg] [parseCMD] Unknown command!');
         return null;
@@ -439,7 +619,7 @@ srapi.prototype.WR = function(gameName) { //{{{
       if (!gameCategories[i][1]) continue;
       MSG = MSG.concat(` ${gameCategories[i][1]}`);
       if (leaderboards[i].time_t) MSG = MSG.concat(` in ${this.PT2normal(leaderboards[i].time_t)}`);
-      MSG = MSG.concat(` by ${userData.name} (${this.platformID2name(leaderboards[i].platformID)})`);
+      MSG = MSG.concat(` by ${userData.name} (${this.platformID2nameLocaly(leaderboards[i].platformID)})`);
       if (i === buff - 1) {
         MSG = MSG.concat('.');
       } else {
@@ -470,7 +650,7 @@ srapi.prototype.SU = function(userToSearch, counter) { //{{{
 } //}}}
 
 srapi.prototype.SG = function(gameToSearch, numOfRs) { //{{{
-  var results = this.searchGame(gameToSearch, numOfRs);
+  var results = this.searchGameLocaly(gameToSearch, numOfRs);
   if (!results || results.length === 0) return null;
   var MSG = `Results for search of \'${gameToSearch}\':`;
   var resLength = results.length;
@@ -490,7 +670,7 @@ srapi.prototype.UPB = function(userName) { //{{{
     console.log('[Err] [UPB] Needed argument!');
     return null;
   }
-  var userData = this.searchUser(userName);
+  var userData = this.searchUser(userName, 1);
   if (userData === null) return null;
   var user = userData[0][1];
   var results = this.getUserPB(user);
@@ -523,9 +703,26 @@ srapi.prototype.UPB = function(userName) { //{{{
   return MSG;
 } //}}}
 
+srapi.prototype.GOOSE = function() { //{{{
+  return `ЗАПУСКАЕМ ░ГУСЯ░▄▀▀▀▄░РАБОТЯГИ░░ ▄███▀░◐░░░▌░░░░░░░ ░░░░▌░░░░░▐░░░░░░░ ░░░░▐░░░░░▐░░░░░░░ ░░░░▌░░░░░▐▄▄░░░░░ ░░░░▌░░░░▄▀▒▒▀▀▀▀▄ ░░░▐░░░░▐▒▒▒▒▒▒▒▒▀▀▄ ░░░▐░░░░▐▄▒▒▒▒▒▒▒▒▒▒▀▄ ░░░░▀▄░░░░▀▄▒▒▒▒▒▒▒▒▒▒▀▄ ░░░░░░▀▄▄▄▄▄█▄▄▄▄▄▄▄▄▄▄▄▀▄ ░░░░░░░░░░░▌▌░▌▌░░░░░ ░░░░░░░░░░░▌▌░▌▌░░░░░ ░░░░░░░░░▄▄▌▌▄▌▌░░░░░`
+} //}}}
+
+srapi.prototype.ABOUT = function() { //{{{
+  return `Made by Nacalyator`;
+} //}}}
+
 // ========= TESTING
 
-srapi.prototype._logger = function(CMD, input, MSG) {
-  var data = `${CMD}     ${input}     ${MSG}\n`;
+srapi.prototype._logger = function(input, MSG) { //{{{
+  var currentTime = new Date();
+  var date = currentTime.toLocaleString();
+  var data = `${date}: ${input}     ${MSG}\n`;
   this.logger.write(data)
-}
+} //}}}
+
+srapi.prototype._errlogger = function(err) { //{{{
+  var currentTime = new Date();
+  var date = currentTime.toLocaleString();
+  var msg = `${date}: ${err}\n`;
+  this.errlogger.write(msg);
+} //}}}

@@ -1,12 +1,25 @@
-# Folders
+# Folders #
+###########
 _obj
-
 node_modules/
 
-# Build
+# Build #
+#########
 
-# debug
+# debug #
+#########
 *.log
 
-# IDE/vim/etc
+# IDE/vim/etc #
+###############
 .tern-project
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
