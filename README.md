@@ -14,10 +14,16 @@ Features:
 - [x] Search game and users
 - [ ] Optimization (too slow):
   - [x] List of games and platforms loads only once
-  - [x] Search games in internal base using [string-similarity](https://www.npmjs.com/package/string-similarity)
+  - [x] Search games and platforms in internal base using [string-similarity](https://www.npmjs.com/package/string-similarity)
   - [x] Increase stability by try-catch
   - [ ] Something else...
 - [x] Parsing chat commands
+  - [x] Word record
+  - [x] Search users
+  - [x] Search games
+  - [x] Get user PBs
+  - [x] GOOSE!!!
+  - [x] About
 - [x] Logs
 - [ ] Add examples
 

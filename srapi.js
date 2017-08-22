@@ -523,11 +523,11 @@ srapi.prototype.platformID2nameLocaly = function(platformID) { //{{{
     return null;
   } else if (platformID && (typeof platformID === 'string') && (platformID.length > 0)) {
     if (this._platformList.length === 0) this.loadPlatformList();
-    var index = this._platformList.findIndex((el) => el[0] === gameID);
+    var index = this._platformList.findIndex((el) => el[0] === platformID);
     if (index != -1) {
       return this._platformList[index][1];
     } else {
-      return this.platformID2name(gameID);
+      return this.platformID2name(platformID);
     }
   } else {
     console.log('[Err] [platformID2nameLocaly] Wrong argument!');
@@ -544,6 +544,7 @@ srapi.prototype.PT2normal = function(time_t) { //{{{
   } else {
     console.log('[Err] [PT2normal] Wrong argument!')
     return null;
+  }
 } //}}}
 
 // ========== CHAT
