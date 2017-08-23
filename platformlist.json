@@ -1,0 +1,338 @@
+[
+	[
+		"8zjw073o",
+		"3DO Interactive Multiplayer"
+	],
+	[
+		"gz3e8431",
+		"Amiga"
+	],
+	[
+		"pl3l0d3x",
+		"Android"
+	],
+	[
+		"6kv953d1",
+		"Arcade"
+	],
+	[
+		"gx38onvo",
+		"Arduboy"
+	],
+	[
+		"54jx7e3d",
+		"Atari 2600"
+	],
+	[
+		"pl3lydvx",
+		"Atari 5200"
+	],
+	[
+		"gz3el4v1",
+		"Atari 7800"
+	],
+	[
+		"k93od5vw",
+		"Atari 8-bit family (400/800/XL/XE)"
+	],
+	[
+		"rdjql43w",
+		"Atari Jaguar"
+	],
+	[
+		"y53kd2j4",
+		"ColecoVision"
+	],
+	[
+		"y5vpk8j9",
+		"Commodore 64"
+	],
+	[
+		"4nv5g3kp",
+		"Dreamcast"
+	],
+	[
+		"gx389nvo",
+		"Famicom Disk System"
+	],
+	[
+		"y5vpw8j9",
+		"Game & Watch"
+	],
+	[
+		"o232q83p",
+		"Game Boy"
+	],
+	[
+		"1wjrqv5m",
+		"Game Boy Advance"
+	],
+	[
+		"gz3e4j1r",
+		"Game Boy Color"
+	],
+	[
+		"6kv9o5vd",
+		"Game Boy Interface"
+	],
+	[
+		"q0j64e3y",
+		"Game Boy Player"
+	],
+	[
+		"1rjz039w",
+		"GameCube"
+	],
+	[
+		"y5vpz8j9",
+		"Graphing Calculator"
+	],
+	[
+		"ow31eev9",
+		"HTC Vive"
+	],
+	[
+		"54jx8evd",
+		"Intellivision"
+	],
+	[
+		"gz3ew431",
+		"iOS"
+	],
+	[
+		"w1jy2l38",
+		"iQue Player"
+	],
+	[
+		"goj47qjw",
+		"Java Phone"
+	],
+	[
+		"m5jnq1jp",
+		"Linux"
+	],
+	[
+		"dl37oej6",
+		"Macintosh"
+	],
+	[
+		"gx387njo",
+		"MS-DOS"
+	],
+	[
+		"rdjqk4jw",
+		"MSX"
+	],
+	[
+		"41jdww3o",
+		"MSX2"
+	],
+	[
+		"41jdgwjo",
+		"N-Gage"
+	],
+	[
+		"963mxoje",
+		"NEC PC-8801"
+	],
+	[
+		"54jxme3d",
+		"NEC PC-98"
+	],
+	[
+		"dl37ge36",
+		"Neo Geo AES"
+	],
+	[
+		"q0j6xejy",
+		"Neo Geo Pocket Color"
+	],
+	[
+		"p930pevn",
+		"NES Classic Mini"
+	],
+	[
+		"p930oe3n",
+		"New Nintendo 3DS"
+	],
+	[
+		"4nv52gvk",
+		"New Nintendo 3DS Virtual Console"
+	],
+	[
+		"y5vp8j9x",
+		"Nintendo 3DS"
+	],
+	[
+		"963mkove",
+		"Nintendo 3DS Virtual Console"
+	],
+	[
+		"ow31ev96",
+		"Nintendo 64"
+	],
+	[
+		"963mojep",
+		"Nintendo DS"
+	],
+	[
+		"rdjq4vwe",
+		"Nintendo Entertainment System"
+	],
+	[
+		"1rjzl039",
+		"Oculus Rift"
+	],
+	[
+		"goj4mqjw",
+		"Ouya"
+	],
+	[
+		"8zjwp7vo",
+		"PC"
+	],
+	[
+		"w1jy0lv8",
+		"PC-FX"
+	],
+	[
+		"ow31xej9",
+		"Philips CD-i"
+	],
+	[
+		"y53k234e",
+		"PlayStation"
+	],
+	[
+		"k93o5jwq",
+		"PlayStation 2"
+	],
+	[
+		"dl37ev6q",
+		"PlayStation 3"
+	],
+	[
+		"goj49qvw",
+		"PlayStation 4"
+	],
+	[
+		"m5jn1vp2",
+		"PlayStation Portable"
+	],
+	[
+		"pl3l1dvx",
+		"Playstation TV"
+	],
+	[
+		"1rjz80j9",
+		"PlayStation Vita"
+	],
+	[
+		"1wjreqv5",
+		"Plug & Play"
+	],
+	[
+		"y53k92v4",
+		"PSN Download"
+	],
+	[
+		"p930mevn",
+		"Sega 32X"
+	],
+	[
+		"1wjrxqj5",
+		"Sega CD"
+	],
+	[
+		"ow31me39",
+		"Sega Game Gear"
+	],
+	[
+		"gx38n3o2",
+		"Sega Genesis"
+	],
+	[
+		"41jd5w3o",
+		"Sega Master System"
+	],
+	[
+		"pl3ldvxw",
+		"Sega Saturn"
+	],
+	[
+		"1wjr4q35",
+		"Super Game Boy"
+	],
+	[
+		"k93op5vw",
+		"Super Game Boy 2"
+	],
+	[
+		"41jdw3o7",
+		"Super Nintendo"
+	],
+	[
+		"q0j6me3y",
+		"Switch"
+	],
+	[
+		"6kv975jd",
+		"Tabletop"
+	],
+	[
+		"m5jn913p",
+		"TurboGrafx-16/PC Engine"
+	],
+	[
+		"8zjwy7vo",
+		"V.Smile"
+	],
+	[
+		"963m2ove",
+		"Virtual Boy"
+	],
+	[
+		"lk3g84vd",
+		"Web"
+	],
+	[
+		"4nv59gjk",
+		"Wii"
+	],
+	[
+		"8zjw7vo6",
+		"Wii U"
+	],
+	[
+		"4nv5ogjk",
+		"Wii U Virtual Console"
+	],
+	[
+		"goj4q3wm",
+		"Wii Virtual Console"
+	],
+	[
+		"w1jyel38",
+		"Windows Phone"
+	],
+	[
+		"6kv9853d",
+		"WonderSwan"
+	],
+	[
+		"o232m8jp",
+		"X68000"
+	],
+	[
+		"rdjq44vw",
+		"Xbox"
+	],
+	[
+		"o23283p4",
+		"Xbox 360"
+	],
+	[
+		"lk3gl4jd",
+		"Xbox One"
+	]
+]

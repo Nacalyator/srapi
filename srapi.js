@@ -349,7 +349,7 @@ srapi.prototype.searchGameLocaly = function(gameToSearch, numOfRs) { //{{{
   if (simArray.length > numOfRs) simArray = simArray.slice(0, numOfRs);
   var simLength = simArray.length;
   for (var i = 0; i < simLength; i++) {
-    results.push([this._gameList[simArray[i][1]]]);
+    results.push(this._gameList[simArray[i][1]]);
   }
   return results;
 } //}}}
@@ -608,6 +608,15 @@ srapi.prototype.WR = function(gameName) { //{{{
   } else if (gameName && (typeof gameName === 'string') && (gameName.length > 0)) {
     if (this._gameList.length === 0) this.loadGameList();
     var gameID = this.getGameID(gameName);
+    if (!gameID) {
+      var buff = this.searchGameLocaly(gameName, 1);
+      if (buff) {
+        gameName = buff[0][1];
+        gameID = buff[0][0];
+      } else {
+        return null;
+      }
+    }
     if (!gameID) return null;
     var gameCategories = this.getGameCategories(gameID);
     if (!gameCategories) return null;
@@ -624,7 +633,7 @@ srapi.prototype.WR = function(gameName) { //{{{
       if (i === buff - 1) {
         MSG = MSG.concat('.');
       } else {
-        MSG = MSG.concat('|| ');
+        MSG = MSG.concat(' ||');
       }
     }
     return MSG;
